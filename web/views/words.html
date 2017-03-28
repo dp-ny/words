@@ -1,0 +1,38 @@
+{{template "_header.html" .}}
+  <div class="container words-container">
+    <h1>{{.Title}}</h1>
+    <div class="row">
+      <div class="col-md-6">
+        {{template "_wordsTable.html" .}}
+        <div class="board-actions">
+          <span>Board size: </span>
+          <input type="text" class="board-size">
+        </div>
+      </div>
+      <div class="status-container col-md-6">
+        <div class="timer-container">
+          <span>Time Left: </span><span class="timer"></span>
+        </div>
+        <div class="actions">
+          <button type="button" class="new">Start New Game</button>
+          <button type="button" class="pause">Pause</button>
+        </div>
+        <div class="rules">
+          <ul>
+            <li>Fewer than 3 Letters: no score</li>
+            <li>3 Letters: 1 point</li>
+            <li>4 Letters: 1 point</li>
+            <li>5 Letters: 2 points</li>
+            <li>6 Letters: 3 points</li>
+            <li>7 Letters: 4 points</li>
+            <li>8 or More Letters: 11 points</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+{{define "scripts"}}
+  <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.0/moment.js"></script>
+  <script type="text/javascript" src="public/js/words.js"></script>
+{{end}}
+{{template "_footer.html"}}

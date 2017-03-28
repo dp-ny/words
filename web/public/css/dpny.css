@@ -1,0 +1,29 @@
+.navbar-top {
+	margin-bottom: 15px;
+}
+
+/* words */
+.words-container table.words {
+	font-size: 40px;
+	font-family: monospace;
+	border: solid black 1px;
+	border-collapse: collapse;
+}
+
+.words-container table.words td {
+	border: solid black 1px;
+	width: 60px;
+	height: 60px;
+}
+
+.words-container .timer-container {
+	font-size: 30px;
+}
+
+.words-container .rules {
+	margin-top: 10px;
+}
+
+.words-container .rules ul {
+	margin-left: 0;
+}
