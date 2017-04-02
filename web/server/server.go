@@ -13,7 +13,7 @@ import (
 	"strings"
 	"text/template"
 
-	"../../words"
+	"../../games"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -23,9 +23,11 @@ var port = flag.Int("port", 9000, "the port on which to serve")
 var partials = "web/views/partials/*.html"
 var wordsTemplate = "words.html"
 
+var manager *games.Manager
 var templates map[string]*template.Template
 
 func init() {
+	manager = games.NewManager()
 	templates = make(map[string]*template.Template)
 	loadTemplates("web/views")
 	loadTemplates("web/views/errors")
@@ -56,7 +58,7 @@ func main() {
 	router := httprouter.New()
 	router.GET("/", Homepage)
 	router.GET("/words", Words)
-	router.GET("/words/new", WordsNew)
+	router.GET("/words/:id", WordsView)
 	router.GET("/healthy", Healthy)
 	router.GET("/d/:path", Default)
 	router.ServeFiles("/public/*filepath", http.Dir("web/public"))
@@ -85,18 +87,38 @@ func Default(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 
 // Words handles the page for the words app supported on this page
 func Words(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	var game [][4]string
-	game = append(game, [4]string{"W", "O", "R", "D"})
-	game = append(game, [4]string{"S", "#", "#", "#"})
-	game = append(game, [4]string{"#", "B", "Y", "#"})
-	game = append(game, [4]string{"D", "P", "N", "Y"})
+	var board [][]string
+	board = append(board, []string{"W", "O", "R", "D"})
+	board = append(board, []string{"S", "#", "#", "#"})
+	board = append(board, []string{"#", "B", "Y", "#"})
+	board = append(board, []string{"D", "P", "N", "Y"})
 
-	executeTemplate(w, wordsTemplate, d("Title", "Words", "Words", game))
+	wordsBoard(w, r, board, "")
+}
+
+// WordsView retrieves a new game, if requested, or an existing game
+func WordsView(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	id := p.ByName("id")
+	if id == "new" {
+		WordsNew(w, r, p)
+		return
+	}
+	game, ok := manager.Get(id)
+	if !ok {
+		notFound(w, fmt.Sprintf("Unable to find %s", id))
+		return
+	}
+	board := game.Board.ToStringArray()
+	wordsBoard(w, r, board, game.JsonTime())
+}
+
+func wordsBoard(w http.ResponseWriter, r *http.Request, board [][]string, time string) {
+	executeTemplate(w, wordsTemplate, d("Title", "Words", "Words", board, "Time", time))
 }
 
 // WordsNew retrieves a new words game to be displayed
 func WordsNew(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	game, err := words.NewDefaultGame()
+	game, err := manager.NewGame()
 	if err != nil {
 		serverError(w, err)
 		return
@@ -107,7 +129,7 @@ func WordsNew(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		serverError(w, err)
 		return
 	}
-	jsonResponse(w, d("html", html))
+	jsonResponse(w, d("id", game.ID, "time", game.JsonTime(), "html", html))
 }
 
 func executeTemplate(w io.Writer, t string, d map[string]interface{}) {
@@ -136,7 +158,14 @@ func Healthy(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 func serverError(w io.Writer, err error) {
 	internalErr := executeTemplateInternal(w, "500.html", d("Error", err.Error()))
 	if internalErr != nil {
-		fmt.Fprintf(os.Stderr, "Something went horribly wrong. Error: %s, trying to show error: %s", internalErr.Error(), err.Error())
+		fmt.Fprintf(os.Stderr, "Something went horribly wrong. Error: %s, trying to show error: %s\n", internalErr.Error(), err.Error())
+	}
+}
+
+func notFound(w io.Writer, msg string) {
+	internalErr := executeTemplateInternal(w, "404.html", d("Error", msg))
+	if internalErr != nil {
+		fmt.Fprintf(os.Stderr, "Something went horribly wrong. Error: %s, trying to show error (%d): %s\n", internalErr.Error(), 404, msg)
 	}
 }
 

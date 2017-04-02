@@ -11,13 +11,13 @@
     <nav class="navbar navbar-top navbar-inverse">
       <a class="navbar-brand" href="/">example</a>
       <ul class="nav navbar-nav">
-        <li class="nav-item {{if eq .Title "home"}}active{{end}}">
+        <li class="nav-item {{with .Title}}{{if eq . "home"}}active{{end}}{{end}}">
           <a class="nav-link" href="/">home <span class="sr-only">(current)</span></a>
         </li>
-        <li class="nav-item {{if eq .Title "about"}}active{{end}}">
+        <li class="nav-item {{with .Title}}{{if eq . "about"}}active{{end}}{{end}}">
           <a class="nav-link" href="/d/about">about</a>
         </li>
-        <li class="nav-item {{if eq .Title "contact"}}active{{end}}">
+        <li class="nav-item {{with .Title}}{{if eq . "contact"}}active{{end}}{{end}}">
           <a class="nav-link" href="#">contact</a>
         </li>
       </ul>

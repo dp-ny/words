@@ -1,17 +1,20 @@
 var words = function() {
-  var b = {};
+  var game = {};
   var pausedDuration = undefined;
   var time = undefined;
   var stopped = true;
-  var DURATION = moment.duration(2, 'minutes');
+  var duration = undefined;
+
   var $body = $('body');
   var $newButton = $('.words-container .actions > .new');
   var $pauseButton = $('.words-container .actions > .pause');
   var $boardSize = $('.words-container .board-size');
-
   var $timer = $('.words-container .timer');
+  var $idContainer = $('.words-container .id');
+  var $id = $idContainer.find('.room-id');
   var $table = $('table.words');
   var $tableTd = $('.words-container table.words td');
+
   var redFlash = '#FF1E1E';
   var defaultColor = $('.words-container').css('background-color');
   var flashCount = 10;
@@ -19,17 +22,34 @@ var words = function() {
   var init = function() {
     var initialSize = $table.css('font-size').replace('px', '');
     $boardSize.val(initialSize);
+    var t = $timer.data('time');
+    if (t !== '') {
+      time = moment(t);
+    }
     updateTimer();
     bindActions();
-    resetGame();
   };
 
-  var resetGame = function() {
-    bindTimerUpdate();
+  var setTime = function(mom) {
+    if (!moment.isMoment(mom)) {
+      /* cowardly */ return;
+    }
+    time = mom;
     pausedDuration = undefined;
-    var now = moment();
-    time = now.add(DURATION);
-    $timer.html(getTimer(DURATION.hours(), DURATION.minutes(), DURATION.seconds()));
+    bindTimerUpdate();
+  }
+
+  var updateId = function(id) {
+    $idContainer.show();
+    $id.html(id);
+  }
+
+  var newGame = function(data) {
+    game = $.extend(game, data);
+    debugger;
+    $table.html(game.html);
+    updateId(game.id);
+    setTime(moment(game.time));
   }
 
   var bindActions = function() {
@@ -41,8 +61,7 @@ var words = function() {
           if (!data.html) {
             alert('unable to fetch new board');
           } else {
-            $table.html(data.html);
-            resetGame();
+            newGame(data);
             stopped = false;
           }
         },
@@ -139,20 +158,19 @@ var words = function() {
   var getTimer = function(hours, minutes, seconds) {
     var timer = "";
     var printMissing = false;
-    if (DURATION.hours() > 0) {
+    if (duration.hours() > 0) {
       timer += padTime(hours) + ":";
       printMissing = true;
     }
-    if (DURATION.minutes() > 0 || printMissing) {
+    if (duration.minutes() > 0 || printMissing) {
       timer += padTime(minutes) + ":";
       printMissing = true;
     }
-    if (DURATION.seconds() > 0 || printMissing) {
+    if (duration.seconds() > 0 || printMissing) {
       timer += padTime(seconds);
     }
     return timer;
   };
 
   init();
-  return b;
 }();

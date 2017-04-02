@@ -6,10 +6,18 @@ import (
 	"time"
 )
 
-// A Words game ready to be played
-type Words struct {
-	conf  wordsConf
-	Board board
+type playerID string
+
+type player struct {
+}
+
+// Game stores the data for a game ready to be played
+type Game struct {
+	ID      string
+	conf    wordsConf
+	Board   board
+	Time    time.Time
+	players map[playerID]player
 }
 
 // Die is responsible for possible values of a grid
@@ -22,7 +30,7 @@ func init() {
 }
 
 // NewDefaultGame returns a new game ready to be played with the default config
-func NewDefaultGame() (*Words, error) {
+func NewDefaultGame() (*Game, error) {
 	conf, err := newDefaultConf()
 	if err != nil {
 		return nil, err
@@ -31,13 +39,13 @@ func NewDefaultGame() (*Words, error) {
 }
 
 // NewGame returns a new game ready to be played
-func NewGame(conf wordsConf) *Words {
-	b := &Words{conf: conf}
+func NewGame(conf wordsConf) *Game {
+	b := &Game{conf: conf}
 	b.init()
 	return b
 }
 
-func (b *Words) init() {
+func (b *Game) init() {
 	i := rand.Intn(len(b.conf.DiceConf))
 	dc := b.conf.DiceConf[i]
 	var values []string
@@ -58,7 +66,12 @@ func (b *Words) init() {
 	}
 }
 
-func (b *Words) print() {
+// Time returns an ISO8601 formatted time string
+func (b *Game) JsonTime() string {
+	return b.Time.Format("2006-01-02T15:04:05-07:00")
+}
+
+func (b *Game) print() {
 	c := 0
 	for x := 0; x < b.conf.Size; x++ {
 		for y := 0; y < b.conf.Size; y++ {

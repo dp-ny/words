@@ -3,6 +3,7 @@
     <h1>{{.Title}}</h1>
     <div class="row">
       <div class="col-md-6">
+        <div class="id" style="display: none;">Room ID: <span class="room-id"></span></div>
         {{template "_wordsTable.html" .}}
         <div class="board-actions">
           <span>Board size: </span>
@@ -11,7 +12,7 @@
       </div>
       <div class="status-container col-md-6">
         <div class="timer-container">
-          <span>Time Left: </span><span class="timer"></span>
+          <span>Time Left: </span><span class="timer" data-time="{{with .Time}}{{.}}{{end}}"></span>
         </div>
         <div class="actions">
           <button type="button" class="new">Start New Game</button>
@@ -33,6 +34,6 @@
   </div>
 {{define "scripts"}}
   <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.0/moment.js"></script>
-  <script type="text/javascript" src="public/js/words.js"></script>
+  <script type="text/javascript" src="/public/js/words.js"></script>
 {{end}}
 {{template "_footer.html"}}

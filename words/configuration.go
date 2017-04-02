@@ -6,14 +6,20 @@ import (
 	"math"
 	"os"
 	"path"
+	"time"
 	"unicode"
 )
 
 var defaultConf string
 var defaultConfErr error
 
+type duration struct {
+	d time.Duration
+}
+
 // A wordsConf game to be intiialized and played
 type wordsConf struct {
+	Duration duration
 	Size     int
 	DiceConf [][]Die `json:"dice"`
 }
@@ -22,7 +28,6 @@ func init() {
 	loadConf()
 }
 
-// Validate returns errors if there are issues with the WordsConf
 func (b *wordsConf) init() error {
 	for i, dc := range b.DiceConf {
 		c := len(dc)
@@ -38,7 +43,7 @@ func (b *wordsConf) init() error {
 	return nil
 }
 
-// UnmarshalJSON returns a Words configuration based on a json string
+// UnmarshalJSON sets a Die configuration based on a json string
 func (d *Die) UnmarshalJSON(b []byte) error {
 	var s string
 	if err := json.Unmarshal(b, &s); err != nil {
@@ -72,6 +77,22 @@ func (d Die) MarshalJSON() ([]byte, error) {
 		s += v
 	}
 	return []byte(fmt.Sprintf("\"%s\"", s)), nil
+}
+
+// UnmarshalJSON sets a duration configuration based on a json string
+func (d *duration) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	var err error
+	d.d, err = time.ParseDuration(s)
+	return err
+}
+
+// MarshalJSON returns a json represenation of a die
+func (d duration) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("\"%s\"", d.d.String())), nil
 }
 
 // newDefaultConf returns a standard conf loaded from json
