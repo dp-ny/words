@@ -3,8 +3,10 @@
     <h1>{{.Title}}</h1>
     <div class="row">
       <div class="col-md-6">
-        <div class="id" style="display: none;">Room ID: <span class="room-id"></span></div>
-        {{template "_wordsTable.html" .}}
+        <div class="id" style="display: none;">Room ID: <a class="room-id"></a></div>
+        <div class="game">
+          {{.html}}
+        </div>
         <div class="board-actions">
           <span>Board size: </span>
           <input type="text" class="board-size">
@@ -12,11 +14,15 @@
       </div>
       <div class="status-container col-md-6">
         <div class="timer-container">
-          <span>Time Left: </span><span class="timer" data-time="{{with .Time}}{{.}}{{end}}"></span>
+          <span>Time Left: </span>
+          <span class="timer"
+            data-time="{{with .time}}{{.}}{{end}}"
+            data-duration="{{with .duration}}{{.}}{{end}}"
+            data-stopped={{with .stopped}}{{.}}{{end}}></span>
         </div>
         <div class="actions">
-          <button type="button" class="new">Start New Game</button>
-          <button type="button" class="pause">Pause</button>
+          <button type="button" class="new">New Game</button>
+          <button type="button" class="pause">Start</button>
         </div>
         <div class="rules">
           <ul>

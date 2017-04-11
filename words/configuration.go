@@ -32,7 +32,6 @@ func (b *wordsConf) init() error {
 	for i, dc := range b.DiceConf {
 		c := len(dc)
 		sqrt := int(math.Floor(math.Sqrt(float64(c))))
-
 		if sqrt*sqrt != c {
 			return fmt.Errorf(
 				"Dice configuration %d did not have a square number of dice (%d)",
@@ -41,6 +40,10 @@ func (b *wordsConf) init() error {
 		b.Size = sqrt
 	}
 	return nil
+}
+
+func (b *wordsConf) UnpackDuration() time.Duration {
+	return b.Duration.d
 }
 
 // UnmarshalJSON sets a Die configuration based on a json string
@@ -90,7 +93,7 @@ func (d *duration) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-// MarshalJSON returns a json represenation of a die
+// MarshalJSON returns a json represenation of a duration
 func (d duration) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf("\"%s\"", d.d.String())), nil
 }

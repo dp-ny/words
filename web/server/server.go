@@ -5,16 +5,19 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html/template"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 	"strings"
-	"text/template"
 
-	"../../games"
+	"../../manager"
+	"../../words"
 
+	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -23,11 +26,20 @@ var port = flag.Int("port", 9000, "the port on which to serve")
 var partials = "web/views/partials/*.html"
 var wordsTemplate = "words.html"
 
-var manager *games.Manager
+var upgrader websocket.Upgrader
+var m *manager.Manager
 var templates map[string]*template.Template
 
 func init() {
-	manager = games.NewManager()
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}
+	var err error
+	m, err = manager.NewManager()
+	if err != nil {
+		panic(err)
+	}
 	templates = make(map[string]*template.Template)
 	loadTemplates("web/views")
 	loadTemplates("web/views/errors")
@@ -59,6 +71,9 @@ func main() {
 	router.GET("/", Homepage)
 	router.GET("/words", Words)
 	router.GET("/words/:id", WordsView)
+	router.POST("/words/:id", WordsView)
+	router.GET("/words/:id/time", WordsTime)
+	router.POST("/words/:id/time", WordsPause)
 	router.GET("/healthy", Healthy)
 	router.GET("/d/:path", Default)
 	router.ServeFiles("/public/*filepath", http.Dir("web/public"))
@@ -87,13 +102,8 @@ func Default(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 
 // Words handles the page for the words app supported on this page
 func Words(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	var board [][]string
-	board = append(board, []string{"W", "O", "R", "D"})
-	board = append(board, []string{"S", "#", "#", "#"})
-	board = append(board, []string{"#", "B", "Y", "#"})
-	board = append(board, []string{"D", "P", "N", "Y"})
-
-	wordsBoard(w, r, board, "")
+	g := m.GetDefaultGame()
+	wordsGame(w, r, &g)
 }
 
 // WordsView retrieves a new game, if requested, or an existing game
@@ -103,33 +113,72 @@ func WordsView(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
 		WordsNew(w, r, p)
 		return
 	}
-	game, ok := manager.Get(id)
+	game, ok := m.Get(id)
 	if !ok {
 		notFound(w, fmt.Sprintf("Unable to find %s", id))
 		return
 	}
-	board := game.Board.ToStringArray()
-	wordsBoard(w, r, board, game.JsonTime())
+	wordsGame(w, r, game)
 }
 
-func wordsBoard(w http.ResponseWriter, r *http.Request, board [][]string, time string) {
-	executeTemplate(w, wordsTemplate, d("Title", "Words", "Words", board, "Time", time))
+func wordsGame(w http.ResponseWriter, r *http.Request, game *words.Game) {
+	d, err := game.JSON()
+	if err != nil {
+		serverError(w, err)
+		return
+	}
+	d["Title"] = "Words"
+	executeTemplate(w, wordsTemplate, d)
 }
 
 // WordsNew retrieves a new words game to be displayed
 func WordsNew(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	game, err := manager.NewGame()
+	game, err := m.NewGame()
 	if err != nil {
 		serverError(w, err)
 		return
 	}
-	board := game.Board.ToStringArray()
-	html, err := templateString("_wordsTable.html", d("Words", board))
+	d, err := game.JSON()
 	if err != nil {
 		serverError(w, err)
 		return
 	}
-	jsonResponse(w, d("id", game.ID, "time", game.JsonTime(), "html", html))
+	jsonResponse(w, d)
+}
+
+// WordsPause stops or resumes the game timer
+func WordsPause(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	id := p.ByName("id")
+	game, ok := m.Get(id)
+	if !ok {
+		jsonResponse(w, d("stopped", true))
+		return
+	}
+	stop, err := strconv.ParseBool(r.FormValue("stopped"))
+	if err != nil {
+		badRequest(w, err)
+	}
+	game.SetStopped(stop)
+	json, err := game.JSON()
+	if err != nil {
+		serverError(w, err)
+	}
+	jsonResponse(w, json)
+}
+
+// WordsTime is a websocket endpoint that returns the time of the requested game
+func WordsTime(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	id := p.ByName("id")
+	game, ok := m.Get(id)
+	if !ok {
+		jsonResponse(w, d("stopped", true))
+		return
+	}
+	json, err := game.JSON()
+	if err != nil {
+		serverError(w, err)
+	}
+	jsonResponse(w, json)
 }
 
 func executeTemplate(w io.Writer, t string, d map[string]interface{}) {
@@ -156,14 +205,21 @@ func Healthy(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func serverError(w io.Writer, err error) {
-	internalErr := executeTemplateInternal(w, "500.html", d("Error", err.Error()))
+	internalErr := executeTemplateInternal(w, "error.html", d("ErrorCode", "500: Server Error", "Error", err.Error()))
+	if internalErr != nil {
+		fmt.Fprintf(os.Stderr, "Something went horribly wrong. Error: %s, trying to show error: %s\n", internalErr.Error(), err.Error())
+	}
+}
+
+func badRequest(w io.Writer, err error) {
+	internalErr := executeTemplateInternal(w, "error.html", d("ErrorCode", "400: Bad Request", "Error", err.Error()))
 	if internalErr != nil {
 		fmt.Fprintf(os.Stderr, "Something went horribly wrong. Error: %s, trying to show error: %s\n", internalErr.Error(), err.Error())
 	}
 }
 
 func notFound(w io.Writer, msg string) {
-	internalErr := executeTemplateInternal(w, "404.html", d("Error", msg))
+	internalErr := executeTemplateInternal(w, "error.html", d("ErrorCode", "404: Not Found", "Error", msg))
 	if internalErr != nil {
 		fmt.Fprintf(os.Stderr, "Something went horribly wrong. Error: %s, trying to show error (%d): %s\n", internalErr.Error(), 404, msg)
 	}

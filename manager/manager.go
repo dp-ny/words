@@ -1,4 +1,4 @@
-package games
+package manager
 
 import (
 	"math/rand"
@@ -9,29 +9,39 @@ import (
 
 type uuid string
 
-const idLength int = 10
+const idLength int = 4
 
 // Manager manages the currently running games
 type Manager struct {
+	def   words.Game
 	games map[string]*words.Game
 }
 
 // NewManager returns a new game Manager, which is the suggested way
 // of creating many games
-func NewManager() *Manager {
-	return &Manager{make(map[string]*words.Game)}
+func NewManager() (*Manager, error) {
+	g, err := words.GetDefaultGame()
+	if err != nil {
+		return nil, err
+	}
+	return &Manager{*g, make(map[string]*words.Game)}, nil
+}
+
+// GetDefaultGame returns the default game for this manager
+func (m Manager) GetDefaultGame() words.Game {
+	return m.def
 }
 
 // NewGame creates a new game in the manager
 func (m Manager) NewGame() (words.Game, error) {
 	id := m.generateUnusedGameID()
-	g, err := words.NewDefaultGame()
+	g, err := words.NewGame()
 	if err != nil {
 		return words.Game{}, err
 	}
 	m.games[id] = g
 	g.ID = id
-	g.Time = time.Now()
+	g.SetTime(time.Now().Add(g.Duration()))
 	return *g, nil
 }
 
@@ -58,4 +68,9 @@ func (m Manager) generateUnusedGameID() string {
 		return m.generateUnusedGameID()
 	}
 	return s
+}
+
+// DefaultDuration returns the duration of the default game
+func (m Manager) DefaultDuration() time.Duration {
+	return m.def.Duration()
 }

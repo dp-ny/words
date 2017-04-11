@@ -8,14 +8,11 @@ import (
 )
 
 func TestNewDefaultGame(t *testing.T) {
-	words, err := newDefaultConf()
+	conf, err := newDefaultConf()
 	if err != nil {
 		t.Error(err.Error())
 	}
-	if words == nil {
-		t.Error("Expected words to be non-nil")
-		t.FailNow()
-	}
+	testConfValues(t, conf)
 }
 
 func TestNewInvaildGame(t *testing.T) {
@@ -41,13 +38,43 @@ func TestInvalidJsons(t *testing.T) {
 	testDecode(t, oneDieJSON("$!", true), false)
 	testDecode(t, oneDieJSON("1234", true), false)
 	testDecode(t, oneDieJSON("1234", false), false)
+	testDecode(t, oneDieJSON("1234", false), false)
 }
 
-func testDecode(t *testing.T, input string, valid bool) {
+func TestInvalidConf(t *testing.T) {
+	conf := testDecode(t, "{\"dice\":[[\"AB\",\"AB\"]]}", true)
+	err := conf.init()
+	if err == nil {
+		t.Errorf("Expected error")
+	}
+}
+
+func testDecode(t *testing.T, input string, valid bool) wordsConf {
 	decoder := json.NewDecoder(strings.NewReader(input))
 	var b wordsConf
 	if err := decoder.Decode(&b); (err == nil) != valid {
-		t.Errorf("Expected to be invalid")
+		if valid {
+			t.Errorf("Expected to be valid, but got %s\n", err.Error())
+		} else {
+			t.Errorf("Expected to be invalid\n")
+		}
+	}
+	return b
+}
+
+func testConfValues(t *testing.T, conf *wordsConf) {
+	if conf == nil {
+		t.Error("Expected conf to be non-nil")
+		t.FailNow()
+	}
+	if conf.Size == 0 {
+		t.Error("Expected conf to have Size")
+	}
+	if len(conf.DiceConf) == 0 {
+		t.Error("Expected conf to have some dice")
+	}
+	if conf.UnpackDuration().Seconds() == 0 {
+		t.Error("Expected conf to have a duration")
 	}
 }
 
@@ -59,7 +86,7 @@ func oneDieJSON(dieConf string, quote bool) string {
 }
 
 func TestPrint(t *testing.T) {
-	game, err := NewDefaultGame()
+	game, err := NewGame()
 	if err != nil {
 		t.Error(err.Error())
 		t.FailNow()
